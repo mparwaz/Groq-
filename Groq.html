@@ -171,12 +171,7 @@ onAuthStateChanged(window.auth, (user) => {
         console.log("Streamflix Cloud Active:", user.uid);
 
       // Push the ID to the Sidebar display
-        const idDisplay = document.getElementById('sidebarUserId');
-        if (idDisplay) {
-            idDisplay.textContent = user.uid;
-            idDisplay.parentElement.classList.remove('hidden');
-        }
-
+        
         // This function waits until the UI script has defined the necessary functions
         const retryLoad = () => {
             if (typeof window.loadRecentChats === "function") {
@@ -983,16 +978,7 @@ window.fetchChatsFromFirestore = () => {
       };
   });
 
-  const userIdDisplay = document.getElementById('userIdContainer');
-if (userIdDisplay) {
-    if (showId) {
-        userIdDisplay.classList.remove('hidden');
-        // Populate it with the actual ID from Firebase
-        userIdDisplay.innerText = `ID: ${window.userId || 'Not Logged In'}`;
-    } else {
-        userIdDisplay.classList.add('hidden');
-    }
-}
+ 
 
   function toggleSettings() { 
       settingsModal.classList.toggle('hidden'); 
