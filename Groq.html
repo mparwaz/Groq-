@@ -162,15 +162,27 @@
         window.db = getFirestore(app);
 
         // State Listener: Automatically logs in & loads history
-        onAuthStateChanged(window.auth, (user) => {
-            if (user) {
-                window.userId = user.uid;
-                console.log("Logged in as:", user.uid);
-                window.loadRecentChats(); // This should trigger your sidebar UI update
+      // Replace the old onAuthStateChanged block with this:
+onAuthStateChanged(window.auth, (user) => {
+    if (user) {
+        window.userId = user.uid;
+        console.log("Streamflix Cloud Active:", user.uid);
+
+        // This function waits until the UI script has defined the necessary functions
+        const retryLoad = () => {
+            if (typeof window.loadRecentChats === "function") {
+                window.loadRecentChats();
             } else {
-                signInAnonymously(window.auth);
+                console.log("Waiting for UI script to initialize...");
+                setTimeout(retryLoad, 100); // Check again in 100ms
             }
-        });
+        };
+        retryLoad();
+        
+    } else {
+        signInAnonymously(window.auth);
+    }
+});
     }
 
     // 3. CREATE A NEW CHAT
@@ -1023,6 +1035,18 @@
       highlightActiveChat(null);
       if(window.innerWidth < 1024) toggleSidebar();
   };
+
+  // This connects the UI script's trigger back to the Firebase logic
+window.loadRecentChats = () => {
+    // If you named the function differently in the Firebase script, 
+    // make sure this name matches what is defined there.
+    if (typeof window.fetchChatsFromFirestore === "function") {
+        window.fetchChatsFromFirestore();
+    } else {
+        // If the Firebase script is the one that handles the fetching logic:
+        // Ensure the Firebase script has a global function like window.loadRecentChats defined.
+    }
+};
 </script>
 </body>
 </html>
