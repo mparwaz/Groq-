@@ -237,6 +237,32 @@ onAuthStateChanged(window.auth, (user) => {
         }
     };
 
+    // 6. FETCH CHATS FROM CLOUD (The missing bridge)
+window.fetchChatsFromFirestore = () => {
+    if (!window.userId || !window.db) return;
+
+    const chatsRef = collection(window.db, `artifacts/${appId}/users/${window.userId}/conversations`);
+    // Order by most recent activity
+    const q = query(chatsRef, orderBy("updatedAt", "desc"));
+
+    // This "onSnapshot" listens for real-time changes
+    onSnapshot(q, (snapshot) => {
+        const chats = snapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data()
+        }));
+        
+        console.log("Database Sync: Found", chats.length, "chats");
+
+        // Send the data back to the UI script's render function
+        if (typeof window.renderChatList === "function") {
+            window.renderChatList(chats);
+        }
+    }, (error) => {
+        console.error("Firestore sync error:", error);
+    });
+};
+
     // Launch connection
     initFirebase();
 </script>
@@ -1041,17 +1067,25 @@ onAuthStateChanged(window.auth, (user) => {
       if(window.innerWidth < 1024) toggleSidebar();
   };
 
-  // This connects the UI script's trigger back to the Firebase logic
-window.loadRecentChats = () => {
-    // If you named the function differently in the Firebase script, 
-    // make sure this name matches what is defined there.
-    if (typeof window.fetchChatsFromFirestore === "function") {
-        window.fetchChatsFromFirestore();
+ window.loadRecentChats = () => {
+    // 1. Check if Firebase script has provided the loader
+    // We check for both possible names to be safe
+    const loader = window.fetchChatsFromFirestore || window.triggerFirebaseLoad;
+
+    if (typeof loader === "function") {
+        console.log("Found Firebase loader, fetching chats...");
+        loader();
     } else {
-        // If the Firebase script is the one that handles the fetching logic:
-        // Ensure the Firebase script has a global function like window.loadRecentChats defined.
+        console.warn("Firebase logic not ready yet. Retrying in 500ms...");
+        // If Firebase isn't ready yet, try again in half a second
+        setTimeout(window.loadRecentChats, 500);
     }
 };
+
+// Auto-start the loading process once the UI is ready
+window.addEventListener('DOMContentLoaded', () => {
+    window.loadRecentChats();
+});
 </script>
 </body>
 </html>
