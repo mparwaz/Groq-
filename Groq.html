@@ -644,14 +644,19 @@ onAuthStateChanged(window.auth, (user) => {
       if (window.currentChatId) highlightActiveChat(window.currentChatId);
   };
 
-  window.highlightActiveChat = (id) => {
-      document.querySelectorAll('#recentChatsList > div').forEach(div => {
-          const btn = div.querySelector('button');
-          if (div.dataset.id === id) btn.classList.add('active-chat');
-          else btn.classList.remove('active-chat');
-      });
-  }
-
+ window.highlightActiveChat = (id) => {
+    document.querySelectorAll('#recentChatsList > div').forEach(div => {
+        const btn = div.querySelector('button');
+        // The fix: Add "if (btn)" to ensure the button exists before touching it
+        if (btn) {
+            if (div.dataset.id === id) {
+                btn.classList.add('active-chat');
+            } else {
+                btn.classList.remove('active-chat');
+            }
+        }
+    });
+}
   window.addMessageToUI = (content, sender="ai", isImage=false, messageId=null) => {
     const welcome = document.getElementById('welcomeMessage');
     if(welcome) welcome.remove();
