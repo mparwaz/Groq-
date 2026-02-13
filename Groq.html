@@ -601,29 +601,42 @@
       }
   });
 
-  /* Rendering */
+  /* Rendering (UPDATED WITH DELETE BUTTON) */
   window.renderChatList = (chats) => {
       const list = document.getElementById('recentChatsList');
       list.innerHTML = '';
+      window.allChatsData = chats; 
       if (chats.length === 0) {
           list.innerHTML = '<div class="text-xs text-[var(--border)] p-2 italic">No history found.</div>';
           return;
       }
       chats.forEach(chat => {
+          const container = document.createElement('div');
+          container.className = "flex items-center group w-full mb-1 pr-2 rounded hover:bg-[var(--hover)] transition-all";
+          container.dataset.id = chat.id;
+
           const btn = document.createElement('button');
-          btn.className = `w-full text-left p-2 rounded hover:bg-[var(--hover)] truncate text-xs md:text-sm mb-1 border-l-2 border-transparent transition-all`;
-          btn.dataset.id = chat.id;
-          btn.innerHTML = `<div class="font-medium truncate">${chat.title}</div><div class="text-[10px] opacity-50">${new Date(chat.updatedAt?.seconds * 1000 || Date.now()).toLocaleDateString()}</div>`;
+          btn.className = `flex-grow text-left p-2 truncate text-xs md:text-sm border-l-2 border-transparent`;
+          btn.innerHTML = `<div class="font-medium truncate">${chat.title || 'New Chat'}</div><div class="text-[10px] opacity-50">${new Date(chat.updatedAt?.seconds * 1000 || Date.now()).toLocaleDateString()}</div>`;
           btn.onclick = () => window.loadChatHistory(chat.id);
-          list.appendChild(btn);
+          
+          const delBtn = document.createElement('button');
+          delBtn.className = "opacity-0 group-hover:opacity-100 p-1 text-gray-400 hover:text-red-500 transition-opacity";
+          delBtn.innerHTML = '<i class="ph-trash"></i>';
+          delBtn.onclick = (e) => { e.stopPropagation(); window.deleteChat(chat.id); };
+
+          container.appendChild(btn);
+          container.appendChild(delBtn);
+          list.appendChild(container);
       });
       if (window.currentChatId) highlightActiveChat(window.currentChatId);
   };
 
   window.highlightActiveChat = (id) => {
-      document.querySelectorAll('#recentChatsList button').forEach(b => {
-          if (b.dataset.id === id) b.classList.add('active-chat');
-          else b.classList.remove('active-chat');
+      document.querySelectorAll('#recentChatsList > div').forEach(div => {
+          const btn = div.querySelector('button');
+          if (div.dataset.id === id) btn.classList.add('active-chat');
+          else btn.classList.remove('active-chat');
       });
   }
 
@@ -632,7 +645,7 @@
     if(welcome) welcome.remove();
 
     const div = document.createElement('div');
-    div.className = `chat-bubble p-3 rounded-lg max-w-[90%] ${sender==='user' ? 'ml-auto bg-[var(--user-msg)] text-[var(--text)] border-none' : ''}`;
+    div.className = `chat-bubble p-3 rounded-lg max-w-[90%] mb-4 ${sender==='user' ? 'ml-auto bg-[var(--user-msg)] text-[var(--text)] border-none' : ''}`;
     div.dataset.messageId = messageId || crypto.randomUUID();
     
     let innerHTML = '';
@@ -746,14 +759,14 @@
   function showTyping() {
       const div = document.createElement('div');
       div.id = 'typingIndicator';
-      div.className = 'chat-bubble p-3 rounded-lg w-fit';
+      div.className = 'chat-bubble p-3 rounded-lg w-fit mb-4';
       div.innerHTML = `<div class="typing-indicator"><div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div></div>`;
       messages.appendChild(div);
       messages.scrollTop = messages.scrollHeight;
   }
   function removeTyping() { const el = document.getElementById('typingIndicator'); if(el) el.remove(); }
 
-  /* --- Send Logic --- */
+  /* --- Send Logic (UPDATED FOR FIREBASE) --- */
   sendBtn.onclick = handleSend;
   userInput.addEventListener('input', function() {
     this.style.height = 'auto';
@@ -762,7 +775,6 @@
   });
   
   userInput.addEventListener('keypress', (e) => {
-    // Check Enter to Send setting
     const enterToSend = document.getElementById('enterToSendToggle').checked;
     if (enterToSend && e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
@@ -776,11 +788,11 @@
     
     if (currentFile) {
         window.addMessageToUI(currentFile.data, 'user', true);
-        window.saveMessageToFirestore(currentFile.data, 'user', true);
+        if (window.saveMessageToFirestore) window.saveMessageToFirestore(currentFile.data, 'user', true);
     }
     if (text) {
         window.addMessageToUI(text, 'user');
-        window.saveMessageToFirestore(text, 'user', false);
+        if (window.saveMessageToFirestore) window.saveMessageToFirestore(text, 'user', false);
     }
     
     const payloadText = text;
@@ -795,7 +807,6 @@
   async function triggerAIRequest(text, fileData = null) {
       showTyping();
       try {
-        // --- Load Settings for API ---
         let systemPrompt = localStorage.getItem('systemPrompt') || "You are a helpful AI.";
         const temp = parseFloat(localStorage.getItem('temp') || '0.7');
         const maxTokens = parseInt(localStorage.getItem('maxTokens') || '2048');
@@ -824,7 +835,6 @@
             }
         };
         
-        // Add Stop Sequences if present
         if(stopSeq.trim()) {
             payload.generationConfig.stopSequences = stopSeq.split(',').map(s => s.trim());
         }
@@ -845,7 +855,7 @@
 
         const aiText = data.candidates[0].content.parts[0].text;
         window.addMessageToUI(aiText, 'ai');
-        window.saveMessageToFirestore(aiText, 'ai', false);
+        if (window.saveMessageToFirestore) window.saveMessageToFirestore(aiText, 'ai', false);
 
     } catch (err) {
         removeTyping();
@@ -907,13 +917,11 @@
   const closeSettings = document.getElementById('closeSettings');
   const saveSettingsBtn = document.getElementById('saveSettingsBtn');
 
-  // Sliders UI
   const tempInput = document.getElementById('tempInput');
   const topPInput = document.getElementById('topPInput');
   tempInput.oninput = () => document.getElementById('tempValue').innerText = tempInput.value;
   topPInput.oninput = () => document.getElementById('topPValue').innerText = topPInput.value;
 
-  // Tab Switching
   document.querySelectorAll('.tab-btn').forEach(btn => {
       btn.onclick = () => {
           document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
@@ -929,58 +937,41 @@
   }
   
   function loadSettingsToUI() {
-      // General
       document.getElementById('systemPrompt').value = localStorage.getItem('systemPrompt') || "You are a helpful AI assistant powered by Groq.";
       document.getElementById('defaultModelSetting').value = localStorage.getItem('defaultModel') || 'llama-3.3-70b-versatile';
-      
-      // AI Config
       tempInput.value = localStorage.getItem('temp') || '0.7';
       document.getElementById('tempValue').innerText = tempInput.value;
       document.getElementById('maxTokensInput').value = localStorage.getItem('maxTokens') || '2048';
       topPInput.value = localStorage.getItem('topP') || '0.9';
       document.getElementById('topPValue').innerText = topPInput.value;
       document.getElementById('stopSequencesInput').value = localStorage.getItem('stopSeq') || '';
-      
-      // Interface
       document.getElementById('fontSizeSelect').value = localStorage.getItem('fontSize') || 'medium';
       document.getElementById('compactModeToggle').checked = localStorage.getItem('compactMode') === 'true';
-      document.getElementById('enterToSendToggle').checked = localStorage.getItem('enterToSend') !== 'false'; // Default true
+      document.getElementById('enterToSendToggle').checked = localStorage.getItem('enterToSend') !== 'false'; 
       document.getElementById('showUserIdToggle').checked = localStorage.getItem('showUserId') === 'true';
-
-      // Data
       estimateStorage();
   }
 
   function saveSettingsToStorage() {
-      // General
       localStorage.setItem('systemPrompt', document.getElementById('systemPrompt').value);
       const defModel = document.getElementById('defaultModelSetting').value;
       localStorage.setItem('defaultModel', defModel);
-      // Update main dropdown if chatting
       if(!window.currentChatId) modelSelect.value = defModel;
-
-      // AI Config
       localStorage.setItem('temp', tempInput.value);
       localStorage.setItem('maxTokens', document.getElementById('maxTokensInput').value);
       localStorage.setItem('topP', topPInput.value);
       localStorage.setItem('stopSeq', document.getElementById('stopSequencesInput').value);
-
-      // Interface
       const fs = document.getElementById('fontSizeSelect').value;
       localStorage.setItem('fontSize', fs);
       document.documentElement.dataset.font = fs;
-
       const compact = document.getElementById('compactModeToggle').checked;
       localStorage.setItem('compactMode', compact);
       document.documentElement.dataset.compact = compact;
-
       localStorage.setItem('enterToSend', document.getElementById('enterToSendToggle').checked);
-      
       const showId = document.getElementById('showUserIdToggle').checked;
       localStorage.setItem('showUserId', showId);
       if(showId) document.getElementById('userIdContainer').classList.remove('hidden');
       else document.getElementById('userIdContainer').classList.add('hidden');
-
       toggleSettings();
   }
 
@@ -989,7 +980,6 @@
   closeSettings.onclick = toggleSettings;
   saveSettingsBtn.onclick = saveSettingsToStorage;
 
-  // Apply Interface Settings on Load
   (function applyInitialSettings() {
       document.documentElement.dataset.font = localStorage.getItem('fontSize') || 'medium';
       document.documentElement.dataset.compact = localStorage.getItem('compactMode');
@@ -997,20 +987,17 @@
       modelSelect.value = localStorage.getItem('defaultModel') || 'llama-3.3-70b-versatile';
   })();
 
-  /* --- Storage Logic (Mocked Estimate) --- */
+  /* --- Storage Logic --- */
   async function estimateStorage() {
       let limit = 500 * 1024 * 1024; 
       if (navigator.storage && navigator.storage.estimate) {
           try { const est = await navigator.storage.estimate(); if (est.quota) limit = est.quota; } catch(e){}
       }
       document.getElementById('storageCapacityEl').textContent = formatBytes(limit);
-      
-      // Calculate roughly based on localStorage usage
       let used = 0;
       for(let key in localStorage) {
           if(localStorage.hasOwnProperty(key)) used += (localStorage[key].length * 2);
       }
-      
       document.getElementById('storageUsedEl').textContent = formatBytes(used);
       document.getElementById('storageFillEl').style.width = Math.min(100, (used / limit * 100)) + '%';
   }
@@ -1036,7 +1023,6 @@
       highlightActiveChat(null);
       if(window.innerWidth < 1024) toggleSidebar();
   };
-
 </script>
 </body>
 </html>
