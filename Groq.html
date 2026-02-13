@@ -4,6 +4,8 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Groq Chat</title>
+  <link rel="icon" type="image/svg+xml" 
+  href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' fill='currentColor' viewBox='0 0 256 256'><path d='M215.79,118.17a8,8,0,0,0-5-5.66L153.18,90.9l14.66-73.33a8,8,0,0,0-13.69-7L46.3,131.74a8,8,0,0,0,5,13.65L108.7,148,89.2,235.48a8,8,0,0,0,13.84,7.07l109.89-118.8A8,8,0,0,0,215.79,118.17Z'></path></svg>">
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://unpkg.com/phosphor-icons"></script>
   <style>
@@ -167,6 +169,13 @@ onAuthStateChanged(window.auth, (user) => {
     if (user) {
         window.userId = user.uid;
         console.log("Streamflix Cloud Active:", user.uid);
+
+      // Push the ID to the Sidebar display
+        const idDisplay = document.getElementById('sidebarUserId');
+        if (idDisplay) {
+            idDisplay.textContent = user.uid;
+            idDisplay.parentElement.classList.remove('hidden');
+        }
 
         // This function waits until the UI script has defined the necessary functions
         const retryLoad = () => {
@@ -973,6 +982,17 @@ window.fetchChatsFromFirestore = () => {
           document.getElementById(`tab-${btn.dataset.tab}`).classList.add('active');
       };
   });
+
+  const userIdDisplay = document.getElementById('userIdContainer');
+if (userIdDisplay) {
+    if (showId) {
+        userIdDisplay.classList.remove('hidden');
+        // Populate it with the actual ID from Firebase
+        userIdDisplay.innerText = `ID: ${window.userId || 'Not Logged In'}`;
+    } else {
+        userIdDisplay.classList.add('hidden');
+    }
+}
 
   function toggleSettings() { 
       settingsModal.classList.toggle('hidden'); 
