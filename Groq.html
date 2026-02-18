@@ -1163,6 +1163,13 @@ window.loadChatHistory = async (chatId) => {
     if(window.innerWidth < 1024) toggleSidebar(); // Auto-close on mobile
 };
 
+  const container = document.getElementById('userIdContainer');
+if (showId) {
+    container.classList.remove('hidden');
+} else {
+    container.classList.add('hidden');
+}
+
 // Auto-start the loading process once the UI is ready
 window.addEventListener('DOMContentLoaded', () => {
     window.loadRecentChats();
