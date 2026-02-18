@@ -170,15 +170,24 @@ onAuthStateChanged(window.auth, (user) => {
         window.userId = user.uid;
         console.log("Streamflix Cloud Active:", user.uid);
 
-      // Push the ID to the Sidebar display
+        // 1. Push the ID to the HTML span
+        const idDisplay = document.getElementById('userIdDisplay');
+        if (idDisplay) {
+            idDisplay.innerText = user.uid;
+        }
+
+        // 2. Ensure visibility if the setting is 'on'
+        if (localStorage.getItem('showUserId') === 'true') {
+            document.getElementById('userIdContainer')?.classList.remove('hidden');
+        }
         
-        // This function waits until the UI script has defined the necessary functions
+        // 3. Wait for UI script and load chats
         const retryLoad = () => {
             if (typeof window.loadRecentChats === "function") {
                 window.loadRecentChats();
             } else {
                 console.log("Waiting for UI script to initialize...");
-                setTimeout(retryLoad, 100); // Check again in 100ms
+                setTimeout(retryLoad, 100); 
             }
         };
         retryLoad();
@@ -187,7 +196,6 @@ onAuthStateChanged(window.auth, (user) => {
         signInAnonymously(window.auth);
     }
 });
-    }
 
     // 3. CREATE A NEW CHAT
     window.createNewChat = async (firstMessageText) => {
