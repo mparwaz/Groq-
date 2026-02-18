@@ -267,6 +267,57 @@ window.fetchChatsFromFirestore = () => {
     });
 };
 
+    // 7. LOAD SPECIFIC CHAT HISTORY
+window.loadChatHistory = async (chatId) => {
+    if (!window.userId || !window.db) return;
+
+    // Set as active
+    window.currentChatId = chatId;
+    const messagesContainer = document.getElementById('messages');
+    
+    // Clear current UI messages
+    messagesContainer.innerHTML = '<div class="text-center opacity-50 text-sm py-4">Loading conversation...</div>';
+
+    // Highlight in sidebar
+    if (typeof window.highlightActiveChat === "function") {
+        window.highlightActiveChat(chatId);
+    }
+
+    // Get reference to messages sub-collection
+    const messagesRef = collection(window.db, `artifacts/${appId}/users/${window.userId}/conversations/${chatId}/messages`);
+    const q = query(messagesRef, orderBy("timestamp", "asc"));
+
+    // Unsubscribe from previous chat listener if it exists
+    if (window.chatListenerUnsubscribe) {
+        window.chatListenerUnsubscribe();
+    }
+
+    // Set up real-time listener for messages in THIS specific chat
+    window.chatListenerUnsubscribe = onSnapshot(q, (snapshot) => {
+        messagesContainer.innerHTML = ''; // Clear loading text
+        
+        if (snapshot.empty) {
+            messagesContainer.innerHTML = '<div class="text-center opacity-30 text-xs py-10">No messages yet.</div>';
+        }
+
+        snapshot.forEach((doc) => {
+            const data = doc.data();
+            // Use your existing UI function to render the message
+            if (typeof window.addMessageToUI === "function") {
+                window.addMessageToUI(data.text, data.role, data.isImage, doc.id);
+            }
+        });
+        
+        // Auto-scroll to bottom
+        messagesContainer.scrollTop = messagesContainer.scrollHeight;
+    });
+
+    // Close sidebar on mobile after selection
+    if (window.innerWidth < 1024 && typeof window.toggleSidebar === "function") {
+        window.toggleSidebar();
+    }
+};
+
     // Launch connection
     initFirebase();
 </script>
@@ -1086,6 +1137,22 @@ window.fetchChatsFromFirestore = () => {
         // If Firebase isn't ready yet, try again in half a second
         setTimeout(window.loadRecentChats, 500);
     }
+};
+
+  window.loadChatHistory = async (id) => {
+    window.currentChatId = id;
+    messages.innerHTML = ''; // Clear current view
+    
+    // You need to implement the actual fetching logic here, 
+    // likely using Firebase's getDocs or a similar listener
+    const chatData = await window.fetchSpecificChatFromFirestore(id); 
+    
+    chatData.messages.forEach(msg => {
+        window.addMessageToUI(msg.text, msg.role, msg.isImage, msg.id);
+    });
+
+    highlightActiveChat(id);
+    if(window.innerWidth < 1024) toggleSidebar(); // Auto-close on mobile
 };
 
 // Auto-start the loading process once the UI is ready
